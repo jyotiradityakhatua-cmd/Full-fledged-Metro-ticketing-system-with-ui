@@ -14,10 +14,10 @@ from models import (
     insert_fare
 )
 import ticket
-from config import DEFAULT_BALANCE
+
 from ticket import  book_ticket
 from database import create_tables, get_connection
-
+from pydantic import BaseModel
 
 
 
@@ -43,17 +43,55 @@ def register(username: str, password: str):
     finally:
         conn.close()
 
+# @app.post("/auth/login", tags=["Auth"])
+# def login(username: str, password: str):
+#     conn = get_connection()
+#     user = conn.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password)).fetchone()
+#     conn.close()
+
+#     if not user:
+#         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+#     token = jwt.encode({"sub": str(user["id"])}, SECRET_KEY, algorithm=ALGORITHM)
+#     return {"access_token": token, "token_type": "bearer"}
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class TicketRequest(BaseModel):
+    source: str
+    destination: str
+
 @app.post("/auth/login", tags=["Auth"])
-def login(username: str, password: str):
+def login(payload: LoginRequest):
     conn = get_connection()
-    user = conn.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password)).fetchone()
-    conn.close()
+
+    try:
+        user = conn.execute(
+            "SELECT * FROM users WHERE username = ? AND password = ?",
+            (payload.username, payload.password)
+        ).fetchone()
+
+    finally:
+        conn.close()
 
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
 
-    token = jwt.encode({"sub": str(user["id"])}, SECRET_KEY, algorithm=ALGORITHM)
-    return {"access_token": token, "token_type": "bearer"}
+    token = jwt.encode(
+        {"sub": str(user["id"])},
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
+
+    return {
+        "access_token": token,
+        "token_type": "bearer"
+    }
 
 
 @app.get("/metro/stations", dependencies=[Depends(get_current_user)])
@@ -70,10 +108,54 @@ def get_user_balance(user_id: int = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="User not found")
     return {"balance": balance}
 
-@app.post("/ticket/book", tags=["Ticket"])
 
-def book_tickets(source: str, destination: str, user_id: int = Depends(get_current_user)):
-    return {"message":book_ticket( source, destination, user_id)}
+
+# @app.post("/ticket/book", tags=["Ticket"])
+# def book_tickets(payload: TicketRequest, user_id: int = Depends(get_current_user)):
+#     result = book_ticket(payload.source, payload.destination, user_id)
+
+#     if isinstance(result, str) or not result.get("success", True):
+#         raise HTTPException(status_code=400, detail=result.get("error", result))
+
+#     return {"message": "Ticket booked successfully", "data": result}
+
+
+@app.post("/ticket/book")
+def book_tickets(payload: TicketRequest, user_id: int = Depends(get_current_user)):
+    result = book_ticket(payload.source, payload.destination, user_id)
+
+
+    if isinstance(result, str):
+        raise HTTPException(status_code=400, detail=result)
+
+
+    if not result.get("success", True):
+        raise HTTPException(status_code=400, detail=result.get("error", "Booking failed"))
+
+    return {"message": "Ticket booked successfully", "data": result}
+
+
+
+
+
+# @app.post("/ticket/book", tags=["Ticket"])
+# def book_tickets(
+#     source: str,
+#     destination: str,
+#     user_id: int = Depends(get_current_user)
+# ):
+#     result = book_ticket(source, destination, user_id)
+
+#     if isinstance(result, str): 
+#         raise HTTPException(status_code=400, detail=result)
+
+#     return {"message": "Ticket booked successfully", "data": result}
+
+
+
+
+
+
     # result = ticket.book_ticket(source, destination, user_id)
     
     # if "Booked" in result:
@@ -140,3 +222,24 @@ def update_user_balance(amount: float, user_id: int = Depends(get_current_user))
 
 
 
+@app.get("/tickets", tags=["Ticket"])
+def get_tickets(user_id: int = Depends(get_current_user)):
+    conn = get_connection()
+    tickets = conn.execute(
+        "SELECT id, source, destination, distance, fare, timestamp FROM tickets WHERE user_id = ?",
+        (user_id,)
+    ).fetchall()
+    conn.close()
+
+    return {
+        "data": [
+            {
+                "source": t["source"],
+                "destination": t["destination"],
+                "distance_km": t["distance"],
+                "fare": t["fare"],
+                "timestamp": t["timestamp"]
+            }
+            for t in tickets
+        ]
+    }

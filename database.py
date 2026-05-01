@@ -35,7 +35,8 @@ def create_tables():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         min_km REAL,
         max_km REAL,
-        price INTEGER
+        price INTEGER,
+        UNIQUE(min_km, max_km)
     )
     """)
 
@@ -46,27 +47,12 @@ def create_tables():
         source TEXT,
         destination TEXT,
         distance REAL,
-        fare INTEGER
+        fare INTEGER,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
     )
     """)
 
-
-  
-
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-  
-    cursor.execute('''CREATE TABLE IF NOT EXISTS tickets (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER,
-                        source TEXT,
-                        destination TEXT,
-                        distance REAL,
-                        fare INTEGER,
-                        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (user_id) REFERENCES users(id)
-                    )''')
     conn.commit()
     conn.close()
 

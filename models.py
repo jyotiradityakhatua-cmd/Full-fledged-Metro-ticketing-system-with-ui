@@ -1,12 +1,16 @@
 from database import get_connection
-from config import DEFAULT_BALANCE
+from database import create_tables
+from datetime import datetime, timedelta
+from to_indian_time import to_indian_time
+
 
 def create_user():
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM users WHERE id = 1")
     if not cursor.fetchone():
-        cursor.execute("INSERT INTO users (id, balance) VALUES (?, ?)", (1, DEFAULT_BALANCE))
+        cursor.execute("INSERT INTO users (id, balance) VALUES (?, ?)",
+                       (1, 100.0))
         conn.commit()
     conn.close()
 
@@ -16,9 +20,11 @@ def get_balance(user_id: int):
     cursor = conn.cursor()
 
     cursor.execute("SELECT balance FROM users WHERE id = ?", (user_id,))
-    result = cursor.fetchone()
-    conn.close()
-    return result[0] if result else None
+    result = cursor.fetchall()
+    # conn.close()
+    # print(result)
+    # print(result[0][0])
+    return result[0][0] if result else None
 
 
 
@@ -125,3 +131,102 @@ def create_ticket_record(user_id, source, destination, distance, fare):
                     )''')
 
 
+# def add_ticket(user_id, source, destination, distance, fare):
+#     conn = get_connection()
+#     cursor = conn.cursor()
+
+#     cursor.execute("""
+#         INSERT INTO tickets (user_id, source, destination, distance, fare)
+#         VALUES (?, ?, ?, ?, ?)
+#     """, (user_id, source, destination, distance, fare))
+
+#     conn.commit()
+#     conn.close()
+
+#     def get_ticket_history(user_id: int):
+#         conn = get_connection()
+#         cursor = conn.cursor()
+
+#     cursor.execute("""
+#         SELECT source, destination, distance, fare, timestamp
+#         FROM tickets
+#         WHERE user_id = ?
+#         ORDER BY timestamp DESC
+#     """, (user_id,))
+
+#     rows = cursor.fetchall()
+#     conn.close()
+
+#     return [
+#         {
+#             "source": r[0],
+#             "destination": r[1],
+#             "distance_km": r[2],
+#             "fare": r[3],
+#             "timestamp": r[4]
+#         }
+#         for r in rows
+#     ]
+
+def add_ticket(user_id, source, destination, distance, fare):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO tickets (user_id, source, destination, distance, fare)
+        VALUES (?, ?, ?, ?, ?)
+    """, (user_id, source, destination, distance, fare))
+
+    conn.commit()
+    conn.close()
+
+
+
+def get_ticket_history(user_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT source, destination, distance, fare, timestamp
+        FROM tickets
+        WHERE user_id = ?
+        ORDER BY timestamp DESC
+    """, (user_id,))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [
+    {
+        "source": r[0],
+        "destination": r[1],
+        "distance_km": r[2],
+        "fare": r[3],
+        "timestamp": to_indian_time(r[4])
+    }
+    for r in rows
+]
+def insert_station():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT COUNT(*) FROM stations")
+    count = cursor.fetchone()[0]
+
+    if count == 0:
+        stations = [
+            ("Station A", 0),
+            ("Station B", 10),
+            ("Station C", 25),
+            ("Station D", 60),
+            ("Station E", 120)
+        ]
+
+        cursor.executemany(
+            "INSERT INTO stations (name, distance) VALUES (?, ?)",
+            stations
+        )
+
+        conn.commit()
+
+    conn.close()
