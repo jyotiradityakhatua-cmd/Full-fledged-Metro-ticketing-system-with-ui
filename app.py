@@ -517,17 +517,17 @@ def login_view():
                 except Exception:
                     st.error('Invalid credentials or server error')
 
-#     with tab2:
-#         with st.form('register_form'):
-#             u = st.text_input('Username', key='reg_u')
-#             p = st.text_input('Password', type='password', key='reg_p')
-#             submit = st.form_submit_button('Register')
-#             if submit:
-#                 try:
-#                     register(u, p)
-#                     st.success('Registration successful')
-#                 except Exception:
-#                     st.error('Registration failed')
+    with tab2:
+        with st.form('register_form'):
+            u = st.text_input('Username', key='reg_u')
+            p = st.text_input('Password', type='password', key='reg_p')
+            submit = st.form_submit_button('Register')
+            if submit:
+                try:
+                    register(u, p)
+                    st.success('Registration successful')
+                except Exception:
+                    st.error('Registration failed')
 
 
 
@@ -716,6 +716,12 @@ def login(username, password):
 def register(username, password):
     res = requests.post(f"{API_URL}/auth/register", params={'username': username, 'password': password}, timeout=10)
     res.raise_for_status()
+    return res.json()
+    # data = res.json()
+    # return data
+  
+    
+
 
 
 
@@ -723,7 +729,7 @@ def logout():
     st.session_state.token = None
     st.session_state.username = ''
     st.session_state.ticket_booked = False 
-    st.rerun()
+    # st.rerun()
 
 
 def get_balance():
@@ -821,7 +827,7 @@ def history_tab():
         tickets = res.json().get('data', [])
         if not tickets:
             st.info('No tickets yet')
-        for t in tickets:
+        for t in reversed(tickets):
             st.write(f"{t['source']} → {t['destination']} | ₹{t['fare']} | {to_ist(t['timestamp'])}")
     except Exception:
         st.error('Failed to load history')
@@ -945,3 +951,4 @@ if st.session_state.token:
     dashboard_view()
 else:
     login_view()
+ 
